@@ -1,0 +1,521 @@
+Here is the <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CareerCompass — Navigate your career with confidence</title>
+  <meta name="description" content="Free AI-powered career tools for every job seeker. Resume help, cover letters, skills lists, and more — powered by Claude AI."/>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, sans-serif; background: #F8FAFC; color: #111827; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    a { text-decoration: none; }
+    input, textarea, button, select { font-family: inherit; }
+    input:focus, textarea:focus { outline: 2px solid #1B6CA8; outline-offset: 1px; }
+    button { cursor: pointer; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #F1F5F9; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const navy='#0A2342', blue='#1B6CA8', blueL='#EBF4FB';
+const teal='#0F6E56', tealL='#E1F5EE';
+const tx='#111827', mu='#6B7280', bd='#E5E7EB', bg='#F8FAFC', wh='#FFFFFF';
+
+async function callAI(messages) {
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages }),
+  });
+  const data = await response.json();
+  return data.content?.map(b => b.text || '').join('') || 'No response received.';
+}
+
+const SCENARIOS = [
+  {
+    id: 2, icon: '📄', title: 'Resume help',
+    question: 'Do you need help completing your resume?',
+    color: blue, cbg: blueL,
+    prompt: j => `You are a professional resume coach using best practices from Zety, ResumeGenius, NovoResume, FlowCV, Resume.com and MakeMyCv.\nFor the position: "${j}".\nWrite a complete, ATS-optimized resume outline including:\n1. Professional summary (3-4 sentences)\n2. Key skills section (10-12 bullet points)\n3. Work experience section (3 roles, 4-5 strong action-verb bullets each)\n4. Education section template\n5. Optional sections relevant to this role\nUse O*NET occupational data for role-specific terminology and quantifiable language.`
+  },
+  {
+    id: 3, icon: '✉️', title: 'Cover letter',
+    question: 'Do you need help writing your cover letter?',
+    color: teal, cbg: tealL,
+    prompt: j => `You are a professional cover letter writer using frameworks from Zety, ResumeGenius, and NovoResume.\nFor the position: "${j}".\nWrite a compelling, personalized cover letter including:\n1. Attention-grabbing opening paragraph (role + key value proposition)\n2. Two body paragraphs with specific skills, experiences, and achievements\n3. Strong closing paragraph with a clear call to action\nKeep it under 400 words. Use a professional yet warm tone. Reference O*NET skills for this role.`
+  },
+  {
+    id: 4, icon: '📋', title: 'Work activities',
+    question: 'Would you like a list of detailed work activities?',
+    color: '#533AB7', cbg: '#EEEDFE',
+    prompt: j => `You are a career information specialist using O*NET OnLine occupational data.\nFor the position: "${j}", provide:\n1. Top 8 most important daily work activities with descriptions\n2. Physical and cognitive demands of the role\n3. Work context (environment, tools used, team interactions)\n4. Task frequency ratings (Daily / Weekly / Monthly)\nBe specific and practical.`
+  },
+  {
+    id: 5, icon: '🧠', title: 'Required skills',
+    question: 'Would you like a list of skills required?',
+    color: '#993C1D', cbg: '#FAECE7',
+    prompt: j => `You are a career skills analyst using O*NET OnLine data and Zety's skills framework.\nFor the position: "${j}", provide:\n1. Top 10 core competency skills (importance: Essential / Important / Helpful)\n2. Top 8 soft skills and work styles required\n3. Key knowledge areas required\n4. Cognitive and physical abilities needed\nFormat clearly with categories and brief descriptions of why each matters.`
+  },
+  {
+    id: 6, icon: '💻', title: 'Tech skills',
+    question: 'Would you like a list of tech skills required?',
+    color: '#3B6D11', cbg: '#EAF3DE',
+    prompt: j => `You are a technology skills specialist drawing on O*NET technology skills data.\nFor the position: "${j}", provide:\n1. Must-have software and platforms (Beginner / Intermediate / Advanced)\n2. Industry-specific tools and systems\n3. General productivity and communication tools expected\n4. Emerging technologies relevant to this role in 2024-2025\n5. Recommended certifications for these tech skills`
+  },
+  {
+    id: 7, icon: '📝', title: 'Application help',
+    question: 'Do you need help completing the job application?',
+    color: '#72243E', cbg: '#FBEAF0',
+    prompt: j => `You are a job application specialist drawing on Zety, ResumeGenius, and career coaching best practices.\nFor the position: "${j}", provide:\n1. How to answer common application questions for this role\n2. How to handle tricky questions (employment gaps, salary expectations, reason for leaving)\n3. What to include in open-ended "additional information" fields\n4. ATS optimization tips specific to this type of role\n5. Common mistakes to avoid\n6. A sample answer for "Why are you interested in this position?"`
+  },
+];
+
+const Compass = ({ light, size = 26 }) => (
+  <svg width={size} height={size} viewBox="0 0 26 26" fill="none" aria-hidden="true">
+    <circle cx="13" cy="13" r="11" stroke={light ? wh : blue} strokeWidth="1.5"/>
+    <polygon points="13,3 15,13 13,11 11,13" fill={light ? wh : blue}/>
+    <polygon points="13,23 15,13 13,15 11,13" fill={light ? 'rgba(255,255,255,0.38)' : 'rgba(27,108,168,0.35)'}/>
+    <circle cx="13" cy="13" r="1.5" fill={light ? wh : blue}/>
+  </svg>
+);
+
+function Nav({ page, setPage }) {
+  const links = ['Home', 'About', 'Tool', 'Resources', 'Contact'];
+  return (
+    <nav style={{ background: navy, padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 58, position: 'sticky', top: 0, zIndex: 1000 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => setPage('home')}>
+        <Compass light />
+        <span style={{ fontWeight: 700, fontSize: 15, color: wh, letterSpacing: '-0.01em' }}>CareerCompass</span>
+      </div>
+      <div style={{ display: 'flex', gap: 2 }}>
+        {links.map(p => {
+          const k = p.toLowerCase(), act = page === k;
+          return (
+            <button key={p} onClick={() => setPage(k)}
+              style={{ background: act ? 'rgba(255,255,255,0.13)' : 'transparent', color: act ? wh : 'rgba(255,255,255,0.68)', border: 'none', padding: '6px 11px', borderRadius: 6, fontSize: 13, fontWeight: act ? 700 : 400 }}>
+              {p}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function Footer({ setPage }) {
+  return (
+    <footer style={{ background: navy, padding: '2.5rem 1.5rem', textAlign: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+        <Compass light size={20} />
+        <span style={{ fontWeight: 700, fontSize: 14, color: wh }}>CareerCompass</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '1.25rem', marginBottom: 12, flexWrap: 'wrap' }}>
+        {['Home', 'About', 'Tool', 'Resources', 'Contact'].map(p => (
+          <button key={p} onClick={() => setPage(p.toLowerCase())}
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.55)', fontSize: 13, padding: 0 }}>
+            {p}
+          </button>
+        ))}
+      </div>
+      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)' }}>
+        © 2025 CareerCompass · Free for all job seekers · Powered by Claude AI
+      </p>
+      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.28)', marginTop: 6 }}>
+        Drawing on O*NET OnLine · Zety · ResumeGenius · NovoResume · FlowCV · Resume.com · MakeMyCv
+      </p>
+    </footer>
+  );
+}
+
+function PageHeader({ title, sub }) {
+  return (
+    <div style={{ background: navy, padding: '3rem 1.5rem', textAlign: 'center' }}>
+      <h1 style={{ fontSize: 32, fontWeight: 800, color: wh, marginBottom: 10, letterSpacing: '-0.025em' }}>{title}</h1>
+      {sub && <p style={{ color: 'rgba(255,255,255,0.62)', fontSize: 15, maxWidth: 480, margin: '0 auto', lineHeight: 1.65 }}>{sub}</p>}
+    </div>
+  );
+}
+
+function HomePage({ setPage }) {
+  const features = [
+    { icon: '🤖', title: 'AI-Powered', desc: 'Claude AI generates content tailored to your exact job title — not generic templates.' },
+    { icon: '📚', title: '7 Expert Sources', desc: 'Built on O*NET, Zety, ResumeGenius, NovoResume, FlowCV, Resume.com and MakeMyCv.' },
+    { icon: '⚡', title: 'Instant & Free', desc: 'Get a full resume outline, cover letter, or skills list in seconds. No account. No credit card.' },
+  ];
+  const steps = [
+    { n: '01', t: 'Enter your job title', d: 'Type the exact position you are applying for.' },
+    { n: '02', t: 'Choose a tool', d: 'Pick from 6 AI-powered career tools.' },
+    { n: '03', t: 'Copy or download', d: 'Save your personalized career content instantly.' },
+  ];
+  return (
+    <main>
+      <section style={{ background: navy, padding: '4.5rem 1.5rem 5rem', textAlign: 'center' }}>
+        <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.7)', fontSize: 11, padding: '4px 14px', borderRadius: 20, marginBottom: 16, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+          Free · AI-Powered · No signup required
+        </div>
+        <h1 style={{ fontSize: 44, fontWeight: 800, color: wh, margin: '0 0 16px', letterSpacing: '-0.035em', lineHeight: 1.06 }}>
+          Navigate your career<br />with confidence.
+        </h1>
+        <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.62)', margin: '0 auto 30px', maxWidth: 480, lineHeight: 1.65 }}>
+          CareerCompass gives every job seeker the AI tools to build a standout resume, write a compelling cover letter, and land the role they deserve.
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button onClick={() => setPage('tool')} style={{ background: teal, color: wh, border: 'none', padding: '13px 28px', borderRadius: 8, fontSize: 15, fontWeight: 700 }}>
+            Launch Job Seeker Tool →
+          </button>
+          <button onClick={() => setPage('about')} style={{ background: 'rgba(255,255,255,0.09)', color: wh, border: '1px solid rgba(255,255,255,0.2)', padding: '13px 24px', borderRadius: 8, fontSize: 15 }}>
+            Learn more
+          </button>
+        </div>
+      </section>
+      <div style={{ background: blueL, padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'center', gap: '3rem', flexWrap: 'wrap', borderBottom: `1px solid ${bd}` }}>
+        {[['6', 'Career Tools'], ['7', 'Expert Sources'], ['100%', 'Free to Use'], ['0', 'Signups Needed']].map(([n, l]) => (
+          <div key={l} style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: navy, lineHeight: 1 }}>{n}</div>
+            <div style={{ fontSize: 11, color: mu, marginTop: 3, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{l}</div>
+          </div>
+        ))}
+      </div>
+      <section style={{ padding: '3.5rem 1.5rem', background: wh }}>
+        <h2 style={{ textAlign: 'center', fontSize: 24, fontWeight: 800, color: navy, marginBottom: '2rem', letterSpacing: '-0.02em' }}>Everything you need to get hired</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, maxWidth: 760, margin: '0 auto' }}>
+          {features.map(f => (
+            <div key={f.title} style={{ background: bg, borderRadius: 12, padding: '1.25rem', border: `1px solid ${bd}` }}>
+              <div style={{ fontSize: 24, marginBottom: 10 }}>{f.icon}</div>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: navy, marginBottom: 6 }}>{f.title}</h3>
+              <p style={{ fontSize: 13, color: mu, lineHeight: 1.65 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section style={{ padding: '3.5rem 1.5rem', background: bg, borderTop: `1px solid ${bd}` }}>
+        <h2 style={{ textAlign: 'center', fontSize: 24, fontWeight: 800, color: navy, marginBottom: '2rem', letterSpacing: '-0.02em' }}>How it works</h2>
+        <div style={{ display: 'flex', gap: 12, maxWidth: 660, margin: '0 auto', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {steps.map(s => (
+            <div key={s.n} style={{ flex: 1, minWidth: 170, textAlign: 'center', padding: '1rem' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: blueL, color: blue, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, margin: '0 auto 10px' }}>{s.n}</div>
+              <h4 style={{ fontSize: 14, fontWeight: 700, color: navy, marginBottom: 6 }}>{s.t}</h4>
+              <p style={{ fontSize: 13, color: mu, lineHeight: 1.55 }}>{s.d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section style={{ padding: '3.5rem 1.5rem', background: navy, textAlign: 'center' }}>
+        <h2 style={{ fontSize: 26, fontWeight: 800, color: wh, marginBottom: 10, letterSpacing: '-0.02em' }}>Ready to get started?</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 24, fontSize: 15 }}>Your next opportunity is waiting. Build your application in minutes.</p>
+        <button onClick={() => setPage('tool')} style={{ background: teal, color: wh, border: 'none', padding: '13px 28px', borderRadius: 8, fontSize: 15, fontWeight: 700 }}>
+          Open the Tool →
+        </button>
+      </section>
+    </main>
+  );
+}
+
+function AboutPage() {
+  const srcs = ['O*NET OnLine', 'Zety', 'ResumeGenius', 'NovoResume', 'FlowCV', 'Resume.com', 'MakeMyCv'];
+  return (
+    <main>
+      <PageHeader title="About CareerCompass" sub="We believe every job seeker deserves access to world-class career tools — regardless of background, budget, or connections." />
+      <div style={{ maxWidth: 660, margin: '0 auto', padding: '3rem 1.5rem' }}>
+        <div style={{ background: blueL, borderRadius: 12, padding: '1.5rem', marginBottom: 14, border: `1px solid ${bd}` }}>
+          <h2 style={{ fontSize: 17, fontWeight: 700, color: navy, marginBottom: 10 }}>Our mission</h2>
+          <p style={{ fontSize: 14, color: tx, lineHeight: 1.8 }}>CareerCompass was built to level the playing field. Whether you are a recent graduate, a career changer, or returning to the workforce — you deserve the same quality of guidance that career coaches charge hundreds of dollars for. Our AI-powered tools make that accessible to everyone, instantly and completely free.</p>
+        </div>
+        <div style={{ background: wh, borderRadius: 12, padding: '1.5rem', marginBottom: 14, border: `1px solid ${bd}` }}>
+          <h2 style={{ fontSize: 17, fontWeight: 700, color: navy, marginBottom: 8 }}>Built on trusted sources</h2>
+          <p style={{ fontSize: 13, color: mu, marginBottom: 14, lineHeight: 1.65 }}>CareerCompass draws its AI knowledge from 7 leading career and resume platforms, combining their methodologies to give you the most comprehensive guidance available:</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            {srcs.map(s => <span key={s} style={{ background: blueL, color: blue, fontSize: 12, padding: '4px 12px', borderRadius: 20, fontWeight: 600 }}>{s}</span>)}
+          </div>
+        </div>
+        <div style={{ background: tealL, borderRadius: 12, padding: '1.5rem', border: `1px solid ${bd}` }}>
+          <h2 style={{ fontSize: 17, fontWeight: 700, color: teal, marginBottom: 8 }}>Always free</h2>
+          <p style={{ fontSize: 14, color: tx, lineHeight: 1.8 }}>CareerCompass is and will always be free to use. No account required. No credit card. No paywalls. No ads. Just powerful AI tools that help every job seeker put their best foot forward and take the next step in their career.</p>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function ToolPage() {
+  const [job, setJob] = useState('');
+  const [sub, setSub] = useState('');
+  const [active, setActive] = useState(null);
+  const [resp, setResp] = useState({});
+  const [load, setLoad] = useState({});
+  const [inp, setInp] = useState('');
+  const [fuLoad, setFuLoad] = useState(false);
+  const [fuResp, setFuResp] = useState('');
+  const [cp, setCp] = useState('');
+
+  const submit = () => {
+    if (job.trim()) { setSub(job.trim()); setActive(null); setResp({}); setFuResp(''); setInp(''); }
+  };
+
+  const fetchResp = async (id, prompt) => {
+    setLoad(p => ({ ...p, [id]: true }));
+    try {
+      const text = await callAI([{ role: 'user', content: prompt }]);
+      setResp(p => ({ ...p, [id]: text }));
+    } catch {
+      setResp(p => ({ ...p, [id]: 'Error getting response. Please try again.' }));
+    }
+    setLoad(p => ({ ...p, [id]: false }));
+  };
+
+  const clickScenario = s => {
+    setActive(s); setFuResp(''); setInp('');
+    if (!resp[s.id]) fetchResp(s.id, s.prompt(sub));
+  };
+
+  const followUp = async () => {
+    if (!inp.trim() || !active) return;
+    setFuLoad(true); setFuResp('');
+    try {
+      const text = await callAI([{ role: 'user', content: `Context for "${sub}" position:\n${resp[active.id]}\n\nFollow-up question: "${inp}"\nProvide a specific, actionable answer.` }]);
+      setFuResp(text);
+    } catch { setFuResp('Error. Please try again.'); }
+    setFuLoad(false);
+  };
+
+  const copy = (t, k) => { navigator.clipboard.writeText(t); setCp(k); setTimeout(() => setCp(''), 1500); };
+  const dl = (t, f) => { const b = new Blob([t], { type: 'text/plain' }), u = URL.createObjectURL(b), a = document.createElement('a'); a.href = u; a.download = f; a.click(); URL.revokeObjectURL(u); };
+
+  const fmt = text => text.split('\n').map((line, i) => {
+    if (!line.trim()) return <div key={i} style={{ height: 5 }} />;
+    if (/^\d+\./.test(line.trim())) return (
+      <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 5 }}>
+        <span style={{ color: mu, minWidth: 18, fontSize: 13 }}>{line.match(/^\d+/)[0]}.</span>
+        <span style={{ fontSize: 13, lineHeight: 1.7, color: tx }}>{line.replace(/^\d+\.\s*/, '').replace(/\*\*/g, '')}</span>
+      </div>
+    );
+    if (/^[-•]\s/.test(line.trim())) return (
+      <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+        <span style={{ color: mu, fontSize: 13 }}>•</span>
+        <span style={{ fontSize: 13, lineHeight: 1.7, color: tx }}>{line.replace(/^[-•]\s*/, '').replace(/\*\*/g, '')}</span>
+      </div>
+    );
+    if (line.trim().endsWith(':') && line.length < 65) return <p key={i} style={{ fontWeight: 700, fontSize: 13, color: navy, margin: '12px 0 4px' }}>{line}</p>;
+    return <p key={i} style={{ fontSize: 13, lineHeight: 1.7, color: tx, marginBottom: 4 }}>{line.replace(/\*\*/g, '')}</p>;
+  });
+
+  const btn = c => ({ fontSize: 12, padding: '4px 10px', background: c || 'transparent', color: c ? wh : tx, border: c ? 'none' : `1px solid ${bd}`, borderRadius: 6, fontWeight: c ? 600 : 400 });
+
+  return (
+    <main style={{ padding: '2rem 1.5rem', maxWidth: 820, margin: '0 auto' }}>
+      <h1 style={{ fontSize: 24, fontWeight: 800, color: navy, marginBottom: 5 }}>Job Seeker Tool</h1>
+      <p style={{ fontSize: 14, color: mu, marginBottom: '1.5rem' }}>Enter your target job title once — all 6 tools below will personalize to it automatically.</p>
+      <div style={{ background: wh, border: `1px solid ${bd}`, borderRadius: 12, padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: mu, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+          Step 1 · What position are you applying for?
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input type="text" value={job} onChange={e => setJob(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()}
+            placeholder="e.g. Software Engineer, Registered Nurse, Marketing Manager..."
+            style={{ flex: 1, padding: '9px 12px', border: `1px solid ${bd}`, borderRadius: 8, fontSize: 14 }} />
+          <button onClick={submit} style={{ ...btn(blue), padding: '0 18px', fontSize: 14 }}>Get started</button>
+        </div>
+        {sub && (
+          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 12, background: blueL, color: blue, padding: '3px 11px', borderRadius: 20, fontWeight: 600 }}>✓ {sub}</span>
+            <span style={{ fontSize: 12, color: mu }}>carried across all tools</span>
+          </div>
+        )}
+      </div>
+      <p style={{ fontSize: 11, fontWeight: 700, color: mu, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Step 2 · Choose a tool</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: '1.25rem' }}>
+        {SCENARIOS.map(s => {
+          const isAct = active?.id === s.id, done = !!resp[s.id];
+          return (
+            <div key={s.id} onClick={() => sub && clickScenario(s)}
+              style={{ background: wh, border: isAct ? `2px solid ${s.color}` : `1px solid ${bd}`, borderRadius: 12, padding: '0.9rem 1rem', cursor: sub ? 'pointer' : 'not-allowed', opacity: sub ? 1 : 0.38, position: 'relative', transition: 'border-color 0.15s' }}>
+              {done && <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, background: tealL, color: teal, padding: '2px 7px', borderRadius: 20, fontWeight: 700 }}>✓ Done</span>}
+              {load[s.id] && <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, background: blueL, color: blue, padding: '2px 7px', borderRadius: 20, fontWeight: 700 }}>Loading…</span>}
+              <div style={{ fontSize: 20, marginBottom: 7 }}>{s.icon}</div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: navy, marginBottom: 3 }}>{s.title}</p>
+              <p style={{ fontSize: 12, color: mu, lineHeight: 1.5 }}>{s.question}</p>
+            </div>
+          );
+        })}
+      </div>
+      {active && (
+        <div style={{ background: wh, border: `1px solid ${bd}`, borderRadius: 12, padding: '1.25rem', animation: 'fadeIn 0.2s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>{active.icon}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: navy }}>{active.title}</span>
+              <span style={{ fontSize: 12, background: active.cbg, color: active.color, padding: '2px 10px', borderRadius: 20, fontWeight: 600 }}>{sub}</span>
+            </div>
+            {resp[active.id] && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button style={btn()} onClick={() => copy(resp[active.id], 'main')}>{cp === 'main' ? 'Copied!' : 'Copy'}</button>
+                <button style={btn()} onClick={() => dl(resp[active.id], `${sub.replace(/\s+/g, '_')}_${active.title.replace(/\s+/g, '_')}.txt`)}>Download</button>
+              </div>
+            )}
+          </div>
+          {load[active.id]
+            ? <div style={{ padding: '2rem', textAlign: 'center' }}>
+                <p style={{ fontSize: 13, color: mu, marginBottom: 12 }}>Generating your personalized {active.title.toLowerCase()}…</p>
+                <div style={{ width: 28, height: 28, border: `2.5px solid ${active.cbg}`, borderTopColor: active.color, borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
+              </div>
+            : resp[active.id] && (
+                <div style={{ background: bg, borderRadius: 8, padding: '1rem', maxHeight: 380, overflowY: 'auto' }}>
+                  {fmt(resp[active.id])}
+                </div>
+              )
+          }
+          {resp[active.id] && (
+            <div style={{ marginTop: '1rem', borderTop: `1px solid ${bd}`, paddingTop: '1rem' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: mu, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Follow-up question</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input type="text" value={inp} onChange={e => setInp(e.target.value)} onKeyDown={e => e.key === 'Enter' && followUp()}
+                  placeholder={`Ask anything about ${active.title.toLowerCase()} for ${sub}…`}
+                  style={{ flex: 1, padding: '8px 12px', border: `1px solid ${bd}`, borderRadius: 8, fontSize: 13 }} />
+                <button onClick={followUp} style={{ ...btn(active.color), padding: '0 14px', whiteSpace: 'nowrap' }}>Ask ↗</button>
+              </div>
+              {fuLoad && <p style={{ fontSize: 13, color: mu, marginTop: 8 }}>Thinking…</p>}
+              {fuResp && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: mu, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Response</span>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      <button style={{ ...btn(), fontSize: 11, padding: '3px 8px' }} onClick={() => copy(fuResp, 'fu')}>{cp === 'fu' ? 'Copied!' : 'Copy'}</button>
+                      <button style={{ ...btn(), fontSize: 11, padding: '3px 8px' }} onClick={() => dl(fuResp, `${sub.replace(/\s+/g, '_')}_followup.txt`)}>Download</button>
+                    </div>
+                  </div>
+                  <div style={{ background: bg, borderRadius: 8, padding: '1rem', maxHeight: 260, overflowY: 'auto' }}>
+                    {fmt(fuResp)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </main>
+  );
+}
+
+function ResourcesPage() {
+  const res = [
+    { n: 'O*NET OnLine', u: 'https://www.onetonline.org', d: 'Official US occupational database with detailed job profiles, skills, tasks, and salary data for 1,000+ careers.', t: 'Occupational Data', c: blue },
+    { n: 'Zety', u: 'https://zety.com', d: 'Top-rated resume builder with expert career advice, cover letter templates, and step-by-step guidance.', t: 'Resume Builder', c: '#533AB7' },
+    { n: 'ResumeGenius', u: 'https://resumegenius.com', d: 'Fast resume builder with industry-specific templates and expert writing tips for all experience levels.', t: 'Resume Builder', c: teal },
+    { n: 'NovoResume', u: 'https://novoresume.com', d: 'Modern ATS-friendly resume and cover letter templates with real-time content suggestions.', t: 'Resume Builder', c: '#993C1D' },
+    { n: 'FlowCV', u: 'https://flowcv.com', d: 'Free professional resume builder with clean, modern designs optimized for applicant tracking systems.', t: 'Resume Builder', c: '#3B6D11' },
+    { n: 'Resume.com', u: 'https://resume.com', d: 'Completely free resume builder with dozens of templates and a built-in job board to find opportunities.', t: 'Resume + Jobs', c: '#72243E' },
+    { n: 'MakeMyCv', u: 'https://makemycv.com', d: 'Simple, guided CV and resume builder with practical tips for making your application stand out.', t: 'CV Builder', c: '#854F0B' },
+  ];
+  const tips = [
+    'Tailor your resume to each job description — match keywords from the posting.',
+    'Use strong action verbs: led, built, launched, increased, reduced, managed.',
+    'Quantify achievements whenever possible (e.g. "increased sales by 30%").',
+    'Keep your resume to 1 page (2 pages max for 10+ years of experience).',
+    'Always write a cover letter, even when listed as optional.',
+    'Follow up on applications after 5–7 business days with a brief, professional email.',
+  ];
+  return (
+    <main>
+      <PageHeader title="Resources" sub="7 trusted platforms that power CareerCompass — visit them for deeper tools, templates, and career content." />
+      <div style={{ maxWidth: 820, margin: '0 auto', padding: '2.5rem 1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: '2.5rem' }}>
+          {res.map(r => (
+            <div key={r.n} style={{ background: wh, border: `1px solid ${bd}`, borderRadius: 12, padding: '1rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 700, fontSize: 13, color: navy }}>{r.n}</span>
+                <span style={{ fontSize: 10, background: '#F3F4F6', color: mu, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>{r.t}</span>
+              </div>
+              <p style={{ fontSize: 12, color: mu, lineHeight: 1.65, flex: 1 }}>{r.d}</p>
+              <a href={r.u} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: r.c, fontWeight: 600 }}>Visit {r.n} →</a>
+            </div>
+          ))}
+        </div>
+        <div style={{ background: blueL, borderRadius: 12, padding: '1.5rem', border: `1px solid ${bd}` }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: navy, marginBottom: 14 }}>Quick career tips</h2>
+          {tips.map((t, i) => (
+            <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'flex-start' }}>
+              <span style={{ width: 22, height: 22, borderRadius: '50%', background: blue, color: wh, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
+              <p style={{ fontSize: 13, color: tx, lineHeight: 1.65 }}>{t}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function ContactPage() {
+  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [sent, setSent] = useState(false);
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const inp = { width: '100%', padding: '9px 12px', border: `1px solid ${bd}`, borderRadius: 8, fontSize: 13, outline: 'none', color: tx, background: wh, marginBottom: 12 };
+  return (
+    <main>
+      <PageHeader title="Contact" sub="Questions, feedback, or partnership inquiries — we'd love to hear from you." />
+      <div style={{ maxWidth: 520, margin: '0 auto', padding: '3rem 1.5rem' }}>
+        {sent
+          ? <div style={{ textAlign: 'center', padding: '3rem', background: tealL, borderRadius: 12, border: `1px solid ${bd}` }}>
+              <div style={{ fontSize: 40, marginBottom: 14 }}>✓</div>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: teal, marginBottom: 8 }}>Message sent!</h2>
+              <p style={{ fontSize: 14, color: mu, lineHeight: 1.6 }}>Thank you for reaching out. We'll get back to you within 2 business days.</p>
+            </div>
+          : <div style={{ background: wh, border: `1px solid ${bd}`, borderRadius: 12, padding: '1.5rem' }}>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: mu, textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }}>Name</label>
+                  <input style={inp} value={form.name} onChange={e => set('name', e.target.value)} placeholder="Your full name" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: mu, textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }}>Email</label>
+                  <input style={inp} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@email.com" />
+                </div>
+              </div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: mu, textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }}>Subject</label>
+              <input style={inp} value={form.subject} onChange={e => set('subject', e.target.value)} placeholder="What's this about?" />
+              <label style={{ fontSize: 11, fontWeight: 700, color: mu, textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }}>Message</label>
+              <textarea style={{ ...inp, minHeight: 120, resize: 'vertical', fontFamily: 'inherit', marginBottom: 16 }} value={form.message} onChange={e => set('message', e.target.value)} placeholder="Your message…" />
+              <button onClick={() => { if (form.name && form.email && form.message) setSent(true); }}
+                style={{ background: navy, color: wh, border: 'none', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, width: '100%' }}>
+                Send message →
+              </button>
+              <p style={{ fontSize: 12, color: mu, textAlign: 'center', marginTop: 10 }}>
+                To receive real messages, connect this form to <a href="https://formspree.io" target="_blank" rel="noreferrer" style={{ color: blue }}>Formspree</a> or <a href="https://www.emailjs.com" target="_blank" rel="noreferrer" style={{ color: blue }}>EmailJS</a>.
+              </p>
+            </div>
+        }
+      </div>
+    </main>
+  );
+}
+
+function App() {
+  const [page, setPage] = useState('home');
+  const goTo = p => { setPage(p); window.scrollTo(0, 0); };
+  return (
+    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', background: bg, color: tx, minHeight: '100vh' }}>
+      <Nav page={page} setPage={goTo} />
+      {page === 'home'      && <HomePage setPage={goTo} />}
+      {page === 'about'     && <AboutPage />}
+      {page === 'tool'      && <ToolPage />}
+      {page === 'resources' && <ResourcesPage />}
+      {page === 'contact'   && <ContactPage />}
+      <Footer setPage={goTo} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
