@@ -492,16 +492,21 @@ function ContactPage() {
               <input style={inp} value={form.subject} onChange={e => set('subject', e.target.value)} placeholder="What's this about?" />
               <label style={{ fontSize: 11, fontWeight: 700, color: mu, textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }}>Message</label>
               <textarea style={{ ...inp, minHeight: 120, resize: 'vertical', fontFamily: 'inherit', marginBottom: 16 }} value={form.message} onChange={e => set('message', e.target.value)} placeholder="Your message…" />
-              <button onClick={() => { if (form.name && form.email && form.message) setSent(true); }}
-                style={{ background: navy, color: wh, border: 'none', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, width: '100%' }}>
-                Send message →
-              </button>
-              <p style={{ fontSize: 12, color: mu, textAlign: 'center', marginTop: 10 }}>
-                To receive real messages, connect this form to <a href="https://formspree.io" target="_blank" rel="noreferrer" style={{ color: blue }}>Formspree</a> or <a href="https://www.emailjs.com" target="_blank" rel="noreferrer" style={{ color: blue }}>EmailJS</a>.
-              </p>
-            </div>
-        }
-      </div>
+              <button onClick={async () => {
+  if (form.name && form.email && form.message) {
+    await fetch('https://formspree.io/f/xojogqry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        name: form.name, 
+        email: form.email, 
+        subject: form.subject, 
+        message: form.message 
+      }),
+    });
+    setSent(true);
+  }
+}}
     </main>
   );
 }
